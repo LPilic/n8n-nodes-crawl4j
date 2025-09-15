@@ -10,11 +10,11 @@ export async function getCrawl4aiClient(
 ): Promise<any> {
   // Get credentials
   const credentials = await executeFunctions.getCredentials('crawl4aiApi') as unknown as Crawl4aiApiCredentials;
-  
+
   if (!credentials) {
     throw new Error('Crawl4AI credentials are not configured!');
   }
-  
+
   // Create and return client instance
   return createCrawlerInstance(credentials);
 }
@@ -32,7 +32,6 @@ export function createBrowserConfig(options: IDataObject): BrowserConfig {
       width: options.viewportWidth ? Number(options.viewportWidth) : 1280,
       height: options.viewportHeight ? Number(options.viewportHeight) : 800,
     },
-    timeout: options.timeout ? Number(options.timeout) : 30000,
     userAgent: options.userAgent ? String(options.userAgent) : undefined,
   };
 }
@@ -60,7 +59,6 @@ export function createCrawlerRunConfig(options: IDataObject): CrawlerRunConfig {
     cacheMode: options.cacheMode as 'enabled' | 'bypass' | 'only' || 'enabled',
     streamEnabled: options.streamEnabled === true,
     pageTimeout: options.pageTimeout ? Number(options.pageTimeout) : 30000,
-    requestTimeout: options.requestTimeout ? Number(options.requestTimeout) : 30000,
     jsCode: options.jsCode ? String(options.jsCode) : undefined,
     jsOnly: options.jsOnly === true,
     cssSelector: options.cssSelector ? String(options.cssSelector) : undefined,
@@ -69,7 +67,6 @@ export function createCrawlerRunConfig(options: IDataObject): CrawlerRunConfig {
     checkRobotsTxt: options.checkRobotsTxt === true,
     wordCountThreshold: options.wordCountThreshold ? Number(options.wordCountThreshold) : 0,
     sessionId: options.sessionId ? String(options.sessionId) : undefined,
-    maxRetries: options.maxRetries ? Number(options.maxRetries) : 3,
   };
 }
 

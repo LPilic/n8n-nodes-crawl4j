@@ -1,5 +1,4 @@
-import { IExecuteFunctions } from 'n8n-workflow';
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import { Crawl4aiApiCredentials, CrawlerRunConfig, CrawlResult } from './interfaces';
 
 /**
@@ -18,8 +17,8 @@ export class Crawl4aiClient {
    * Create and configure an Axios instance for API communication
    */
   private createApiClient(): AxiosInstance {
-    const baseURL = this.credentials.connectionMode === 'docker' 
-      ? this.credentials.dockerUrl 
+    const baseURL = this.credentials.connectionMode === 'docker'
+      ? this.credentials.dockerUrl
       : 'http://localhost:11235'; // Default fallback for direct mode
 
     const client = axios.create({
@@ -241,7 +240,6 @@ export class Crawl4aiClient {
           type: 'dict',
           value: config.viewport,
         } : { type: 'dict', value: { width: 1280, height: 800 } },
-        timeout: config.timeout || 30000,
         user_agent: config.userAgent,
       },
     };
@@ -255,7 +253,6 @@ export class Crawl4aiClient {
       cache_mode: config.cacheMode || 'enabled',
       stream: config.streamEnabled || false,
       page_timeout: config.pageTimeout || 30000,
-      request_timeout: config.requestTimeout || 30000,
       js_code: config.jsCode,
       js_only: config.jsOnly || false,
       css_selector: config.cssSelector,
@@ -264,7 +261,6 @@ export class Crawl4aiClient {
       check_robots_txt: config.checkRobotsTxt || false,
       word_count_threshold: config.wordCountThreshold || 0,
       session_id: config.sessionId,
-      max_retries: config.maxRetries || 3,
     };
 
     // Add extraction strategy if present

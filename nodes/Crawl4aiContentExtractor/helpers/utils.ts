@@ -10,6 +10,7 @@ export {
 
 import { IDataObject } from 'n8n-workflow';
 import { CssSelectorSchema, LlmSchema } from './interfaces';
+import { cleanText } from '../../Crawl4aiBasicCrawler/helpers/utils';
 
 /**
  * Create a CSS selector extraction strategy
@@ -43,6 +44,7 @@ export function createCssSelectorExtractionStrategy(schema: CssSelectorSchema): 
  * @param instruction Instructions for LLM extraction
  * @param provider LLM provider name
  * @param apiKey API key for LLM provider
+ * @param extraArgs Additional LLM parameters (temperature, max_tokens, etc.)
  * @returns Extraction strategy for LLM
  */
 export function createLlmExtractionStrategy(
@@ -50,16 +52,63 @@ export function createLlmExtractionStrategy(
   instruction: string,
   provider: string,
   apiKey?: string,
+  extraArgs?: any,
+  ollamaUrl?: string,
+  model?: string,
 ): any {
-  return {
+  // Build LLM config parameters
+  const llmParams: any = {};
+
+  // Handle authentication based on provider type
+  if (provider === 'ollama') {
+    // For Ollama, use ollama/model format
+    const fullProvider = model ? `ollama/${model}` : 'ollama/gemma3:1b';
+    llmParams.provider = fullProvider;
+
+    // Use the Ollama URL as base_url (only this parameter)
+    if (ollamaUrl) {
+      console.log('Setting Ollama base_url:', ollamaUrl);
+      console.log('Full LLM params for Ollama:', JSON.stringify(llmParams, null, 2));
+      llmParams.base_url = ollamaUrl;
+    } else {
+      console.warn('Ollama provider specified but no ollamaUrl provided');
+    }
+  } else {
+    // For other providers, use provider/model format
+    const fullProvider = model ? `${provider}/${model}` : provider;
+    llmParams.provider = fullProvider || 'openai/gpt-4o';
+
+    // Only set API key if provided (let Crawl4AI use .env for OpenAI)
+    if (apiKey && apiKey !== 'none' && apiKey.trim() !== '') {
+      llmParams.api_token = apiKey;
+    }
+  }
+
+  // Add extra parameters if provided
+  if (extraArgs) {
+    if (extraArgs.temperature !== undefined) {
+      llmParams.temperature = extraArgs.temperature;
+    }
+    if (extraArgs.max_tokens !== undefined) {
+      llmParams.max_tokens = extraArgs.max_tokens;
+    }
+    if (extraArgs.top_p !== undefined) {
+      llmParams.top_p = extraArgs.top_p;
+    }
+    if (extraArgs.frequency_penalty !== undefined) {
+      llmParams.frequency_penalty = extraArgs.frequency_penalty;
+    }
+    if (extraArgs.presence_penalty !== undefined) {
+      llmParams.presence_penalty = extraArgs.presence_penalty;
+    }
+  }
+
+  const extractionStrategy = {
     type: 'LLMExtractionStrategy',
     params: {
       llm_config: {
         type: 'LLMConfig',
-        params: {
-          provider: provider || 'openai/gpt-4o',
-          api_token: apiKey,
-        },
+        params: llmParams,
       },
       instruction,
       schema: {
@@ -71,6 +120,9 @@ export function createLlmExtractionStrategy(
       force_json_response: true,
     },
   };
+
+  console.log('Final extraction strategy:', JSON.stringify(extractionStrategy, null, 2));
+  return extractionStrategy;
 }
 
 /**
@@ -80,7 +132,7 @@ export function cleanExtractedData(data: IDataObject): IDataObject {
   if (!data) return {};
 
   const cleanedData: IDataObject = {};
-  
+
   Object.entries(data).forEach(([key, value]) => {
     if (typeof value === 'string') {
       cleanedData[key] = cleanText(value);

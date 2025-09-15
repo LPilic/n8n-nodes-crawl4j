@@ -41,8 +41,8 @@ export const description: INodeProperties[] = [
 		},
 		required: true,
 		default: '',
-		placeholder: 'Extract the product name, price, and description from this page.',
-		description: 'Instructions for the LLM on what to extract from the page',
+		placeholder: 'Extract all job listings with their titles, locations, and URLs from this page.',
+		description: 'Instructions for the LLM on what to extract from the page. For multiple items, specify that you want ALL items found.',
 		displayOptions: {
 			show: {
 				operation: ['llmExtractor'],
@@ -199,43 +199,16 @@ export const description: INodeProperties[] = [
 		},
 		options: [
 			{
-				displayName: 'LLM Provider',
-				name: 'llmProvider',
-				type: 'options',
-				options: [
-					{
-						name: 'Anthropic Claude 3 Sonnet',
-						value: 'anthropic/claude-3-sonnet',
-						description: 'Anthropic Claude 3 Sonnet',
-					},
-					{
-						name: 'Groq Llama 3 70B',
-						value: 'groq/llama3-70b-8192',
-						description: 'Groq Llama 3 70B',
-					},
-					{
-						name: 'Ollama Llama 3',
-						value: 'ollama/llama3',
-						description: 'Ollama Llama 3 (Local)',
-					},
-					{
-						name: 'OpenAI GPT-3.5 Turbo',
-						value: 'openai/gpt-3.5-turbo',
-						description: 'OpenAI GPT-3.5 Turbo',
-					},
-					{
-						name: 'OpenAI GPT-4o',
-						value: 'openai/gpt-4o',
-						description: 'OpenAI GPT-4o',
-					},
-				],
-				default: 'openai/gpt-4o',
-				description: 'LLM provider to use for extraction',
-				displayOptions: {
-					show: {
-						overrideProvider: [true],
-					},
+				displayName: 'Frequency Penalty',
+				name: 'frequencyPenalty',
+				type: 'number',
+				typeOptions: {
+					minValue: -2,
+					maxValue: 2,
+					numberPrecision: 1,
 				},
+				default: 0,
+				description: 'Penalizes new tokens based on frequency in the text so far',
 			},
 			{
 				displayName: 'Max Tokens',
@@ -245,26 +218,24 @@ export const description: INodeProperties[] = [
 				description: 'Maximum number of tokens for the LLM response',
 			},
 			{
-				displayName: 'Override LLM Provider',
-				name: 'overrideProvider',
-				type: 'boolean',
-				default: false,
-				description: 'Whether to override the LLM provider from credentials',
+				displayName: 'Model Name or ID',
+				name: 'model',
+				type: 'string',
+				default: '',
+				placeholder: 'gpt-4o-mini, claude-3-sonnet-20240229, llama3.1:8b',
+				description: 'The model to use for extraction. Leave empty to use default model for the provider configured in credentials. Examples: gpt-4o-mini, claude-3-sonnet-20240229, llama3.1:8b',
 			},
 			{
-				displayName: 'Provider API Key',
-				name: 'apiKey',
-				type: 'string',
+				displayName: 'Presence Penalty',
+				name: 'presencePenalty',
+				type: 'number',
 				typeOptions: {
-					password: true,
+					minValue: -2,
+					maxValue: 2,
+					numberPrecision: 1,
 				},
-				default: '',
-				description: 'API key for the LLM provider (leave empty to use API key from credentials)',
-				displayOptions: {
-					show: {
-						overrideProvider: [true],
-					},
-				},
+				default: 0,
+				description: 'Penalizes new tokens based on whether they appear in the text so far',
 			},
 			{
 				displayName: 'Temperature',
@@ -272,11 +243,23 @@ export const description: INodeProperties[] = [
 				type: 'number',
 				typeOptions: {
 					minValue: 0,
-					maxValue: 1,
+					maxValue: 2,
 					numberPrecision: 1,
 				},
 				default: 0,
 				description: 'Controls randomness: 0 for deterministic results, higher for more creativity',
+			},
+			{
+				displayName: 'Top P',
+				name: 'topP',
+				type: 'number',
+				typeOptions: {
+					minValue: 0,
+					maxValue: 1,
+					numberPrecision: 1,
+				},
+				default: 1,
+				description: 'Controls diversity via nucleus sampling: 0.1 means only top 10% probability mass',
 			},
 		],
 	},
@@ -317,6 +300,13 @@ export const description: INodeProperties[] = [
 				description: 'How to use the cache when crawling',
 			},
 			{
+				displayName: 'Extract Multiple Items',
+				name: 'extractMultiple',
+				type: 'boolean',
+				default: true,
+				description: 'Whether to extract multiple items (e.g., job listings, product cards) or just a single item',
+			},
+			{
 				displayName: 'Include Original Text',
 				name: 'includeFullText',
 				type: 'boolean',
@@ -350,8 +340,7 @@ export async function execute(
 	if (!credentials.enableLlm) {
 		throw new NodeOperationError(
 			this.getNode(),
-			'LLM features are not enabled in Crawl4AI credentials. Please enable them and configure an LLM provider.',
-			{ itemIndex: 0 }
+			'LLM features are not enabled in Crawl4AI credentials. Please enable them and configure an LLM provider.'
 		);
 	}
 
@@ -366,19 +355,25 @@ export async function execute(
 			const options = this.getNodeParameter('options', i, {}) as IDataObject;
 
 			if (!url) {
-				throw new NodeOperationError(this.getNode(), 'URL cannot be empty.', { itemIndex: i });
+				throw new NodeOperationError(this.getNode(), 'URL cannot be empty.');
 			}
 
 			if (!isValidUrl(url)) {
-				throw new NodeOperationError(this.getNode(), `Invalid URL: ${url}`, { itemIndex: i });
+				throw new NodeOperationError(this.getNode(), `Invalid URL: ${url}`);
 			}
 
 			if (!instruction) {
-				throw new NodeOperationError(this.getNode(), 'Extraction instructions cannot be empty.', { itemIndex: i });
+				throw new NodeOperationError(this.getNode(), 'Extraction instructions cannot be empty.');
 			}
 
 			if (!schemaFieldsValues || schemaFieldsValues.length === 0) {
-				throw new NodeOperationError(this.getNode(), 'At least one schema field must be defined.', { itemIndex: i });
+				throw new NodeOperationError(this.getNode(), 'At least one schema field must be defined.');
+			}
+
+			// Validate model selection
+			const selectedModel = llmOptions.model as string;
+			if (selectedModel && !credentials.enableLlm) {
+				throw new NodeOperationError(this.getNode(), 'LLM features must be enabled in credentials to use custom model.');
 			}
 
 			// Prepare LLM schema
@@ -398,35 +393,60 @@ export async function execute(
 				}
 			});
 
-			const schema: LlmSchema = {
-				title: 'ExtractedData',
-				type: 'object',
-				properties: schemaProperties,
-				required: requiredFields.length > 0 ? requiredFields : undefined,
-			};
+			// Create schema based on whether we want multiple items or single item
+			const extractMultiple = options.extractMultiple !== false; // Default to true
+			let schema: LlmSchema;
 
-			// Determine LLM provider
-			let provider = credentials.llmProvider || 'openai/gpt-4o';
+			if (extractMultiple) {
+				// Schema for multiple items (array)
+				schema = {
+					title: 'ExtractedItems',
+					type: 'object',
+					properties: {
+						items: {
+							name: 'items',
+							type: 'array',
+							description: 'Array of extracted items',
+						},
+					},
+					required: ['items'],
+				};
+			} else {
+				// Schema for single item
+				schema = {
+					title: 'ExtractedData',
+					type: 'object',
+					properties: schemaProperties,
+					required: requiredFields.length > 0 ? requiredFields : undefined,
+				};
+			}
+
+			// Determine LLM provider and model from credentials
+			let provider = credentials.llmProvider || 'openai';
+			let model = (llmOptions.model as string || 'gpt-4o').trim(); // Trim any whitespace
 			let apiKey = credentials.apiKey;
+			let ollamaUrl = credentials.ollamaUrl;
 
-			if (llmOptions.overrideProvider === true) {
-				provider = llmOptions.llmProvider as string || provider;
-				apiKey = llmOptions.apiKey as string || apiKey;
+			// Ensure Ollama URL has proper protocol
+			if (provider === 'ollama' && ollamaUrl) {
+				ollamaUrl = ollamaUrl.trim();
+				if (!ollamaUrl.startsWith('http://') && !ollamaUrl.startsWith('https://')) {
+					ollamaUrl = `http://${ollamaUrl}`;
+				}
+			}
+
+			// Format provider/model for Crawl4AI based on provider type
+			let fullModelName: string;
+			if (provider === 'ollama') {
+				// For Ollama, try just the model name first
+				fullModelName = model;
+			} else {
+				// For other providers, use provider/model format
+				fullModelName = `${provider}/${model}`;
 			}
 
 			// Create browser config
 			const browserConfig = createBrowserConfig(browserOptions);
-
-			// Create LLM extraction strategy
-			const extractionStrategy = createLlmExtractionStrategy(
-				schema,
-				instruction,
-				provider,
-				apiKey
-			);
-
-			// Get crawler instance
-			const crawler = await getCrawl4aiClient(this);
 
 			// Prepare extra arguments for LLM
 			const extraArgs: any = {};
@@ -436,6 +456,43 @@ export async function execute(
 			if (llmOptions.maxTokens !== undefined) {
 				extraArgs.max_tokens = llmOptions.maxTokens;
 			}
+			if (llmOptions.topP !== undefined) {
+				extraArgs.top_p = llmOptions.topP;
+			}
+			if (llmOptions.frequencyPenalty !== undefined) {
+				extraArgs.frequency_penalty = llmOptions.frequencyPenalty;
+			}
+			if (llmOptions.presencePenalty !== undefined) {
+				extraArgs.presence_penalty = llmOptions.presencePenalty;
+			}
+
+			// Enhance instruction for multiple items if needed
+			let enhancedInstruction = instruction;
+			if (extractMultiple) {
+				enhancedInstruction = `${instruction}\n\nPlease extract ALL items found on the page. Return them as an array of objects, where each object contains the fields: ${schemaFieldsValues.map(f => f.name).join(', ')}. If no items are found, return an empty array.`;
+			}
+
+			// Create LLM extraction strategy with extra arguments
+			console.log('Creating LLM extraction strategy with:', {
+				provider: provider,
+				model: model,
+				fullModelName: fullModelName,
+				ollamaUrl: ollamaUrl,
+				apiKey: apiKey ? '***' : 'none'
+			});
+
+			const extractionStrategy = createLlmExtractionStrategy(
+				schema,
+				enhancedInstruction,
+				provider,
+				apiKey,
+				extraArgs,
+				ollamaUrl,
+				model
+			);
+
+			// Get crawler instance
+			const crawler = await getCrawl4aiClient(this);
 
 			// Run the extraction
 			const result = await crawler.arun(url, {
@@ -444,33 +501,52 @@ export async function execute(
 				cacheMode: options.cacheMode || 'enabled',
 				jsCode: browserOptions.jsCode,
 				cssSelector: options.cssSelector,
-				extraArgs,
 			});
 
 			// Parse extracted JSON
 			const extractedData = parseExtractedJson(result);
 
-			// Format extraction result
-			const formattedResult = formatExtractionResult(
-				result,
-				extractedData,
-				options.includeFullText as boolean
-			);
+			// Process the result based on extraction type
+			if (extractMultiple && extractedData && extractedData.items && Array.isArray(extractedData.items)) {
+				// Multiple items: create separate result for each item
+				const items = extractedData.items as any[];
+				items.forEach((item, index) => {
+					const formattedResult = formatExtractionResult(
+						result,
+						item,
+						options.includeFullText as boolean
+					);
 
-			// Add the result to the output array
-			allResults.push({
-				json: formattedResult,
-				pairedItem: { item: i },
-			});
+					// Add item index to distinguish multiple items
+					formattedResult.itemIndex = index;
+					formattedResult.totalItems = items.length;
+
+					allResults.push({
+						json: formattedResult,
+						pairedItem: { item: i },
+					});
+				});
+			} else {
+				// Single item or fallback
+				const formattedResult = formatExtractionResult(
+					result,
+					extractedData,
+					options.includeFullText as boolean
+				);
+
+				allResults.push({
+					json: formattedResult,
+					pairedItem: { item: i },
+				});
+			}
 
 		} catch (error) {
 			// Handle continueOnFail or re-throw
 			if (this.continueOnFail()) {
 				const node = this.getNode();
-				const errorItemIndex = (error as any).itemIndex ?? i;
 				allResults.push({
 					json: items[i].json,
-					error: new NodeOperationError(node, (error as Error).message, { itemIndex: errorItemIndex }),
+					error: new NodeOperationError(node, (error as Error).message),
 					pairedItem: { item: i },
 				});
 				continue;

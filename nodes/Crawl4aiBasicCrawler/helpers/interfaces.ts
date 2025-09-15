@@ -36,7 +36,6 @@ export interface BrowserConfig {
     width: number;
     height: number;
   };
-  timeout?: number;
   userAgent?: string;
 }
 
@@ -45,7 +44,6 @@ export interface CrawlerRunConfig {
   cacheMode?: 'enabled' | 'bypass' | 'only';
   streamEnabled?: boolean;
   pageTimeout?: number;
-  requestTimeout?: number;
   jsCode?: string | string[];
   jsOnly?: boolean;
   cssSelector?: string;
@@ -54,7 +52,6 @@ export interface CrawlerRunConfig {
   checkRobotsTxt?: boolean;
   wordCountThreshold?: number;
   sessionId?: string;
-  maxRetries?: number;
   // Additional options
   viewport?: {
     width: number;

@@ -175,8 +175,8 @@ export class Crawl4aiApi implements ICredentialType {
 			displayName: 'Ollama URL',
 			name: 'ollamaUrl',
 			type: 'string',
-			default: 'http://localhost:11434',
-			description: 'The URL for Ollama server',
+			default: 'http://host.docker.internal:11434',
+			description: 'The URL for Ollama server. Use host.docker.internal when Ollama runs on host and Crawl4AI in Docker.',
 			displayOptions: {
 				show: {
 					enableLlm: [true],
