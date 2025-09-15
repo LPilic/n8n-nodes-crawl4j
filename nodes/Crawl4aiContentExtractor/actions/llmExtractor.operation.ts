@@ -167,7 +167,7 @@ export const description: INodeProperties[] = [
 				displayName: 'Timeout (MS)',
 				name: 'timeout',
 				type: 'number',
-				default: 60000, // Longer timeout for LLM extraction
+				default: 180000, // 3 minutes timeout for LLM extraction
 				description: 'Maximum time to wait for the browser to load the page',
 			},
 			{

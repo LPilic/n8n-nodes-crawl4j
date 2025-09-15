@@ -23,7 +23,7 @@ export class Crawl4aiClient {
 
     const client = axios.create({
       baseURL,
-      timeout: 60000, // 60 seconds default timeout
+      timeout: 180000, // 3 minutes timeout for LLM extraction
     });
 
     // Add authentication headers if needed
