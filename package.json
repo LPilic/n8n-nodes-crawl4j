@@ -26,7 +26,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/LPilic/n8n-nodes-crawl4j.git"
+    "url": "https://github.com/golfamigo/n8n-nodes-crawl4j.git"
   },
   "main": "index.js",
   "scripts": {
