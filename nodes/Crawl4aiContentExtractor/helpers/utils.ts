@@ -82,6 +82,9 @@ export function createLlmExtractionStrategy(
     if (apiKey && apiKey !== 'none' && apiKey.trim() !== '') {
       llmParams.api_token = apiKey;
     }
+
+    // Note: SSL verification issues with Groq may need to be resolved at the environment level
+    // or by using alternative providers like Ollama
   }
 
   // Add extra parameters if provided

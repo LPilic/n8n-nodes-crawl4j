@@ -23,7 +23,7 @@ export class Crawl4aiClient {
 
     const client = axios.create({
       baseURL,
-      timeout: 180000, // 3 minutes timeout for LLM extraction
+      timeout: 60000, // 1 minute timeout
     });
 
     // Add authentication headers if needed
@@ -231,17 +231,33 @@ export class Crawl4aiClient {
    * Format browser config for the API
    */
   private formatBrowserConfig(config: CrawlerRunConfig): any {
+    const params: any = {
+      headless: config.headless !== false,
+      java_script_enabled: config.javaScriptEnabled !== false,
+      viewport: config.viewport ? {
+        type: 'dict',
+        value: config.viewport,
+      } : { type: 'dict', value: { width: 1280, height: 800 } },
+      user_agent: config.userAgent,
+    };
+
+    // Optional advanced browser settings
+    if ((config as any).browserType) params.browser_type = (config as any).browserType;
+    if ((config as any).proxyConfig) params.proxy_config = { type: 'dict', value: (config as any).proxyConfig };
+    if ((config as any).headers) params.headers = { type: 'dict', value: (config as any).headers };
+    if ((config as any).cookies) params.cookies = { type: 'list', value: (config as any).cookies };
+    if ((config as any).userAgentMode) params.user_agent_mode = (config as any).userAgentMode;
+    if ((config as any).verbose !== undefined) params.verbose = Boolean((config as any).verbose);
+    if ((config as any).usePersistentContext) params.use_persistent_context = true;
+    if ((config as any).userDataDir) params.user_data_dir = (config as any).userDataDir;
+    if ((config as any).textMode) params.text_mode = true;
+    if ((config as any).lightMode) params.light_mode = true;
+    if ((config as any).extraArgs) params.extra_args = { type: 'list', value: (config as any).extraArgs };
+    if ((config as any).enableStealth) params.enable_stealth = true;
+
     return {
       type: 'BrowserConfig',
-      params: {
-        headless: config.headless !== false,
-        java_script_enabled: config.javaScriptEnabled !== false,
-        viewport: config.viewport ? {
-          type: 'dict',
-          value: config.viewport,
-        } : { type: 'dict', value: { width: 1280, height: 800 } },
-        user_agent: config.userAgent,
-      },
+      params,
     };
   }
 
@@ -251,7 +267,7 @@ export class Crawl4aiClient {
   private formatCrawlerConfig(config: CrawlerRunConfig): any {
     const params: any = {
       cache_mode: config.cacheMode || 'enabled',
-      stream: config.streamEnabled || false,
+      stream: (config.stream as boolean) || config.streamEnabled || false,
       page_timeout: config.pageTimeout || 30000,
       js_code: config.jsCode,
       js_only: config.jsOnly || false,
@@ -262,6 +278,21 @@ export class Crawl4aiClient {
       word_count_threshold: config.wordCountThreshold || 0,
       session_id: config.sessionId,
     };
+
+    // Advanced options according to docs
+    if (config.waitFor) params.wait_for = config.waitFor;
+    if (config.screenshot) params.screenshot = true;
+    if (config.pdf) params.pdf = true;
+    if (config.captureMhtml) params.capture_mhtml = true;
+    if (config.locale) params.locale = config.locale;
+    if (config.timezoneId) params.timezone_id = config.timezoneId;
+    if (config.geolocation) params.geolocation = { type: 'dict', value: config.geolocation };
+    if (config.enableRateLimiting) params.enable_rate_limiting = true;
+    if (config.rateLimitConfig) params.rate_limit_config = { type: 'dict', value: config.rateLimitConfig };
+    if (config.memoryThresholdPercent !== undefined) params.memory_threshold_percent = config.memoryThresholdPercent;
+    if (config.checkInterval !== undefined) params.check_interval = config.checkInterval;
+    if (config.maxSessionPermit !== undefined) params.max_session_permit = config.maxSessionPermit;
+    if (config.displayMode) params.display_mode = config.displayMode;
 
     // Add extraction strategy if present
     if (config.extractionStrategy) {

@@ -138,6 +138,17 @@ export const description: INodeProperties[] = [
 			},
 		},
 		options: [
+      {
+        displayName: 'Browser Type',
+        name: 'browserType',
+        type: 'options',
+        options: [
+          { name: 'Chromium', value: 'chromium' },
+          { name: 'Firefox', value: 'firefox' },
+          { name: 'WebKit', value: 'webkit' },
+        ],
+        default: 'chromium',
+      },
 			{
 				displayName: 'Enable JavaScript',
 				name: 'javaScriptEnabled',
@@ -152,6 +163,41 @@ export const description: INodeProperties[] = [
 				default: true,
 				description: 'Whether to run browser in headless mode',
 			},
+      {
+        displayName: 'User-Agent Mode',
+        name: 'userAgentMode',
+        type: 'options',
+        options: [
+          { name: 'Default', value: 'default' },
+          { name: 'Random', value: 'random' },
+        ],
+        default: 'default',
+      },
+      {
+        displayName: 'User Agent',
+        name: 'userAgent',
+        type: 'string',
+        default: '',
+      },
+      {
+        displayName: 'Proxy Server',
+        name: 'proxyServer',
+        type: 'string',
+        default: '',
+      },
+      {
+        displayName: 'Proxy Username',
+        name: 'proxyUsername',
+        type: 'string',
+        default: '',
+      },
+      {
+        displayName: 'Proxy Password',
+        name: 'proxyPassword',
+        type: 'string',
+        typeOptions: { password: true },
+        default: '',
+      },
 			{
 				displayName: 'JavaScript Code',
 				name: 'jsCode',
@@ -167,7 +213,7 @@ export const description: INodeProperties[] = [
 				displayName: 'Timeout (MS)',
 				name: 'timeout',
 				type: 'number',
-				default: 180000, // 3 minutes timeout for LLM extraction
+				default: 60000, // 1 minute timeout
 				description: 'Maximum time to wait for the browser to load the page',
 			},
 			{
@@ -184,6 +230,54 @@ export const description: INodeProperties[] = [
 				default: 1280,
 				description: 'The width of the browser viewport',
 			},
+      {
+        displayName: 'Headers (JSON)',
+        name: 'headers',
+        type: 'json',
+        default: '',
+      },
+      {
+        displayName: 'Cookies (JSON)',
+        name: 'cookies',
+        type: 'json',
+        default: '',
+      },
+      {
+        displayName: 'Use Persistent Context',
+        name: 'usePersistentContext',
+        type: 'boolean',
+        default: false,
+      },
+      {
+        displayName: 'User Data Directory',
+        name: 'userDataDir',
+        type: 'string',
+        default: '',
+      },
+      {
+        displayName: 'Enable Stealth',
+        name: 'enableStealth',
+        type: 'boolean',
+        default: false,
+      },
+      {
+        displayName: 'Text Mode (Disable Images)',
+        name: 'textMode',
+        type: 'boolean',
+        default: false,
+      },
+      {
+        displayName: 'Light Mode',
+        name: 'lightMode',
+        type: 'boolean',
+        default: false,
+      },
+      {
+        displayName: 'Extra Browser Args (CSV)',
+        name: 'extraArgs',
+        type: 'string',
+        default: '',
+      },
 		],
 	},
 	{

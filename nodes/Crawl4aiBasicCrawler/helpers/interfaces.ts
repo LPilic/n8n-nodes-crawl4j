@@ -30,6 +30,8 @@ export interface Crawl4aiNodeOptions extends IDataObject {
 
 // Browser configuration interface
 export interface BrowserConfig {
+  // Core
+  browserType?: 'chromium' | 'firefox' | 'webkit';
   headless?: boolean;
   javaScriptEnabled?: boolean;
   viewport?: {
@@ -37,12 +39,30 @@ export interface BrowserConfig {
     height: number;
   };
   userAgent?: string;
+  // Network & identity
+  proxyConfig?: {
+    server: string;
+    username?: string;
+    password?: string;
+  } | null;
+  headers?: Record<string, string>;
+  cookies?: Array<{ name: string; value: string; domain?: string; path?: string }>;
+  userAgentMode?: 'default' | 'random';
+  // Behavior
+  verbose?: boolean;
+  usePersistentContext?: boolean;
+  userDataDir?: string;
+  textMode?: boolean;
+  lightMode?: boolean;
+  extraArgs?: string[];
+  enableStealth?: boolean;
 }
 
 // Crawler run configuration interface
 export interface CrawlerRunConfig {
   cacheMode?: 'enabled' | 'bypass' | 'only';
-  streamEnabled?: boolean;
+  streamEnabled?: boolean; // legacy flag kept for backward compat
+  stream?: boolean; // aligns with Crawl4AI docs
   pageTimeout?: number;
   jsCode?: string | string[];
   jsOnly?: boolean;
@@ -63,6 +83,20 @@ export interface CrawlerRunConfig {
   userAgent?: string;
   // Extraction strategy
   extractionStrategy?: any;
+  // Advanced from docs
+  waitFor?: string; // e.g., "css:.main-loaded" or "js:() => window.loaded === true"
+  screenshot?: boolean;
+  pdf?: boolean;
+  captureMhtml?: boolean;
+  locale?: string; // e.g., "en-US"
+  timezoneId?: string; // e.g., "America/New_York"
+  geolocation?: { latitude: number; longitude: number } | null;
+  enableRateLimiting?: boolean;
+  rateLimitConfig?: Record<string, any> | null;
+  memoryThresholdPercent?: number;
+  checkInterval?: number;
+  maxSessionPermit?: number;
+  displayMode?: 'DETAILED' | 'BRIEF' | string;
 }
 
 // Crawl result interface
