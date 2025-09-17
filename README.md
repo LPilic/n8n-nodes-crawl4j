@@ -127,3 +127,7 @@ MIT
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Release Notes
+
+- 0.3.5 (Rollback): Reverted newly added "enhanced Browser/Crawler/LLM configuration" features due to instability. Restored pre-features behavior for reliability. Versions 0.3.1–0.3.4 are deprecated on npm; please use 0.3.5.
