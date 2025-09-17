@@ -50,6 +50,36 @@ export const description: INodeProperties[] = [
 		},
 	},
 	{
+		displayName: 'Schema Type',
+		name: 'schemaType',
+		type: 'options',
+		options: [
+			{
+				name: 'From Attribute Descriptions',
+				value: 'attributeDescriptions',
+				description: 'Extract specific attributes from the text based on types and descriptions',
+			},
+			{
+				name: 'Generate From JSON Example',
+				value: 'jsonExample',
+				description: 'Generate a schema from an example JSON object',
+			},
+			{
+				name: 'Define using JSON Schema',
+				value: 'jsonSchema',
+				description: 'Define the JSON schema manually',
+			},
+		],
+		default: 'attributeDescriptions',
+		required: true,
+		description: 'Choose how to define the extraction schema',
+		displayOptions: {
+			show: {
+				operation: ['llmExtractor'],
+			},
+		},
+	},
+	{
 		displayName: 'Schema Fields',
 		name: 'schemaFields',
 		placeholder: 'Add Schema Field',
@@ -62,6 +92,7 @@ export const description: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				operation: ['llmExtractor'],
+				schemaType: ['attributeDescriptions'],
 			},
 		},
 		options: [
@@ -125,6 +156,42 @@ export const description: INodeProperties[] = [
 				],
 			},
 		],
+	},
+	{
+		displayName: 'JSON Example',
+		name: 'jsonExample',
+		type: 'string',
+		typeOptions: {
+			rows: 8,
+		},
+		required: true,
+		default: '',
+		placeholder: '{\n  "JobInfo": {\n    "jobCount": {\n      "hasJobs": "true",\n      "total": 0,\n      "unique": 0,\n      "duplicate": 0,\n      "timestamp": "{{ $now }}"\n    },\n    "countries": [\n      {\n        "country": "Germany",\n        "countryCode": "DE",\n        "countryJobCount": 0\n      }\n    ]\n  },\n  "jobs": [\n    {\n      "title": "Retail Sales Associate",\n      "location": "Berlin",\n      "country": "Germany",\n      "category": "Retail",\n      "type": "Apprenticeship",\n      "duplicate": "true"\n    }\n  ]\n}',
+		description: 'Example JSON object that defines the structure you want to extract. The LLM will generate a schema from this example.',
+		displayOptions: {
+			show: {
+				operation: ['llmExtractor'],
+				schemaType: ['jsonExample'],
+			},
+		},
+	},
+	{
+		displayName: 'JSON Schema',
+		name: 'jsonSchema',
+		type: 'string',
+		typeOptions: {
+			rows: 8,
+		},
+		required: true,
+		default: '',
+		placeholder: '{\n  "type": "object",\n  "properties": {\n    "title": {\n      "type": "string",\n      "description": "The job title"\n    },\n    "location": {\n      "type": "string",\n      "description": "The job location"\n    },\n    "salary": {\n      "type": "number",\n      "description": "The salary amount"\n    }\n  },\n  "required": ["title", "location"]\n}',
+		description: 'JSON Schema definition that specifies the exact structure and validation rules for the extracted data.',
+		displayOptions: {
+			show: {
+				operation: ['llmExtractor'],
+				schemaType: ['jsonSchema'],
+			},
+		},
 	},
 	{
 		displayName: 'Browser Options',
@@ -349,7 +416,10 @@ export async function execute(
 			// Get parameters for the current item
 			const url = this.getNodeParameter('url', i, '') as string;
 			const instruction = this.getNodeParameter('instruction', i, '') as string;
+			const schemaType = this.getNodeParameter('schemaType', i, 'attributeDescriptions') as string;
 			const schemaFieldsValues = this.getNodeParameter('schemaFields.fieldsValues', i, []) as IDataObject[];
+			const jsonExample = this.getNodeParameter('jsonExample', i, '') as string;
+			const jsonSchema = this.getNodeParameter('jsonSchema', i, '') as string;
 			const browserOptions = this.getNodeParameter('browserOptions', i, {}) as IDataObject;
 			const llmOptions = this.getNodeParameter('llmOptions', i, {}) as IDataObject;
 			const options = this.getNodeParameter('options', i, {}) as IDataObject;
@@ -366,8 +436,19 @@ export async function execute(
 				throw new NodeOperationError(this.getNode(), 'Extraction instructions cannot be empty.');
 			}
 
-			if (!schemaFieldsValues || schemaFieldsValues.length === 0) {
-				throw new NodeOperationError(this.getNode(), 'At least one schema field must be defined.');
+			// Validate schema based on type
+			if (schemaType === 'attributeDescriptions') {
+				if (!schemaFieldsValues || schemaFieldsValues.length === 0) {
+					throw new NodeOperationError(this.getNode(), 'At least one schema field must be defined when using "From Attribute Descriptions".');
+				}
+			} else if (schemaType === 'jsonExample') {
+				if (!jsonExample || jsonExample.trim() === '') {
+					throw new NodeOperationError(this.getNode(), 'JSON Example cannot be empty when using "Generate From JSON Example".');
+				}
+			} else if (schemaType === 'jsonSchema') {
+				if (!jsonSchema || jsonSchema.trim() === '') {
+					throw new NodeOperationError(this.getNode(), 'JSON Schema cannot be empty when using "Define using JSON Schema".');
+				}
 			}
 
 			// Validate model selection
@@ -376,49 +457,95 @@ export async function execute(
 				throw new NodeOperationError(this.getNode(), 'LLM features must be enabled in credentials to use custom model.');
 			}
 
-			// Prepare LLM schema
-			const schemaProperties: Record<string, LlmSchemaField> = {};
-			const requiredFields: string[] = [];
-
-			schemaFieldsValues.forEach(field => {
-				const fieldName = field.name as string;
-				schemaProperties[fieldName] = {
-					name: fieldName,
-					type: field.fieldType as string,
-					description: field.description as string || undefined,
-				};
-
-				if (field.required === true) {
-					requiredFields.push(fieldName);
-				}
-			});
-
-			// Create schema based on whether we want multiple items or single item
+			// Create schema based on schema type
 			const extractMultiple = options.extractMultiple !== false; // Default to true
 			let schema: LlmSchema;
 
-			if (extractMultiple) {
-				// Schema for multiple items (array)
-				schema = {
-					title: 'ExtractedItems',
-					type: 'object',
-					properties: {
-						items: {
-							name: 'items',
-							type: 'array',
-							description: 'Array of extracted items',
+			if (schemaType === 'attributeDescriptions') {
+				// Prepare LLM schema from attribute descriptions
+				const schemaProperties: Record<string, LlmSchemaField> = {};
+				const requiredFields: string[] = [];
+
+				schemaFieldsValues.forEach(field => {
+					const fieldName = field.name as string;
+					schemaProperties[fieldName] = {
+						name: fieldName,
+						type: field.fieldType as string,
+						description: field.description as string || undefined,
+					};
+
+					if (field.required === true) {
+						requiredFields.push(fieldName);
+					}
+				});
+
+				if (extractMultiple) {
+					// Schema for multiple items (array)
+					schema = {
+						title: 'ExtractedItems',
+						type: 'object',
+						properties: {
+							items: {
+								name: 'items',
+								type: 'array',
+								description: 'Array of extracted items',
+							},
 						},
-					},
-					required: ['items'],
-				};
+						required: ['items'],
+					};
+				} else {
+					// Schema for single item
+					schema = {
+						title: 'ExtractedData',
+						type: 'object',
+						properties: schemaProperties,
+						required: requiredFields.length > 0 ? requiredFields : undefined,
+					};
+				}
+			} else if (schemaType === 'jsonExample') {
+				// For JSON example, we'll use a simplified schema and let the LLM handle the structure
+				// This is more flexible than trying to parse the example into a strict schema
+				if (extractMultiple) {
+					schema = {
+						title: 'ExtractedItems',
+						type: 'object',
+						properties: {
+							items: {
+								name: 'items',
+								type: 'array',
+								description: 'Array of extracted items matching the example structure',
+							},
+						},
+						required: ['items'],
+					};
+				} else {
+					schema = {
+						title: 'ExtractedData',
+						type: 'object',
+						properties: {
+							data: {
+								name: 'data',
+								type: 'object',
+								description: 'Extracted data matching the example structure',
+							},
+						},
+						required: ['data'],
+					};
+				}
+			} else if (schemaType === 'jsonSchema') {
+				// For JSON schema, we need to validate it's a proper schema
+				try {
+					const parsedSchema = JSON.parse(jsonSchema);
+					// Basic validation - ensure it has required properties
+					if (!parsedSchema.type || !parsedSchema.properties) {
+						throw new Error('JSON Schema must have "type" and "properties" fields');
+					}
+					schema = parsedSchema as LlmSchema;
+				} catch (error) {
+					throw new NodeOperationError(this.getNode(), `Invalid JSON Schema: ${(error as Error).message}`);
+				}
 			} else {
-				// Schema for single item
-				schema = {
-					title: 'ExtractedData',
-					type: 'object',
-					properties: schemaProperties,
-					required: requiredFields.length > 0 ? requiredFields : undefined,
-				};
+				throw new NodeOperationError(this.getNode(), `Unknown schema type: ${schemaType}`);
 			}
 
 			// Determine LLM provider and model from credentials
@@ -466,10 +593,25 @@ export async function execute(
 				extraArgs.presence_penalty = llmOptions.presencePenalty;
 			}
 
-			// Enhance instruction for multiple items if needed
+			// Enhance instruction based on schema type
 			let enhancedInstruction = instruction;
-			if (extractMultiple) {
-				enhancedInstruction = `${instruction}\n\nPlease extract ALL items found on the page. Return them as an array of objects, where each object contains the fields: ${schemaFieldsValues.map(f => f.name).join(', ')}. If no items are found, return an empty array.`;
+			
+			if (schemaType === 'attributeDescriptions') {
+				if (extractMultiple) {
+					enhancedInstruction = `${instruction}\n\nPlease extract ALL items found on the page. Return them as an array of objects, where each object contains the fields: ${schemaFieldsValues.map(f => f.name).join(', ')}. If no items are found, return an empty array.`;
+				}
+			} else if (schemaType === 'jsonExample') {
+				if (extractMultiple) {
+					enhancedInstruction = `${instruction}\n\nPlease extract ALL items found on the page and return them in the same structure as the provided JSON example. If no items are found, return an empty array or empty object as appropriate.`;
+				} else {
+					enhancedInstruction = `${instruction}\n\nPlease extract the data and return it in the same structure as the provided JSON example.`;
+				}
+			} else if (schemaType === 'jsonSchema') {
+				if (extractMultiple) {
+					enhancedInstruction = `${instruction}\n\nPlease extract ALL items found on the page and return them according to the provided JSON schema. If no items are found, return an empty array or empty object as appropriate.`;
+				} else {
+					enhancedInstruction = `${instruction}\n\nPlease extract the data and return it according to the provided JSON schema.`;
+				}
 			}
 
 			// Create LLM extraction strategy with extra arguments
