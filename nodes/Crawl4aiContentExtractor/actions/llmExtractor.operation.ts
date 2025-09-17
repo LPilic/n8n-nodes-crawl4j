@@ -309,18 +309,6 @@ export const description: INodeProperties[] = [
         default: false,
       },
       {
-        displayName: 'Text Mode (Disable Images)',
-        name: 'textMode',
-        type: 'boolean',
-        default: false,
-      },
-      {
-        displayName: 'Light Mode',
-        name: 'lightMode',
-        type: 'boolean',
-        default: false,
-      },
-      {
         displayName: 'Extra Browser Args (CSV)',
         name: 'extraArgs',
         type: 'string',
