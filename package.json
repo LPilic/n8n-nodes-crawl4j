@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-crawl4ai-enhanced",
-  "version": "0.3.4",
+  "version": "0.3.3",
   "description": "n8n nodes for Crawl4AI web crawler and data extraction with enhanced Browser/Crawler/LLM configuration options",
   "keywords": [
     "n8n",
