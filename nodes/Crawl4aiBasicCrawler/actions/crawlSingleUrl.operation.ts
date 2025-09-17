@@ -100,6 +100,13 @@ export const description: INodeProperties[] = [
         description: 'Whether to run browser in headless mode',
       },
       {
+        displayName: 'Timeout (Ms)',
+        name: 'timeout',
+        type: 'number',
+        default: 30000,
+        description: 'Maximum time to wait for the browser to load the page',
+      },
+      {
         displayName: 'Light Mode',
         name: 'lightMode',
         type: 'boolean',
@@ -135,13 +142,6 @@ export const description: INodeProperties[] = [
         type: 'boolean',
         default: false,
         description: 'Whether to disable images for faster text-only crawls',
-      },
-      {
-        displayName: 'Timeout (Ms)',
-        name: 'timeout',
-        type: 'number',
-        default: 30000,
-        description: 'Maximum time to wait for the browser to load the page',
       },
       {
         displayName: 'Use Persistent Context',
@@ -372,7 +372,7 @@ export const description: INodeProperties[] = [
         description: 'Maximum time to wait for network requests',
       },
       {
-        displayName: 'Resource Check Interval (S)',
+        displayName: 'Resource Check Interval (s)',
         name: 'checkInterval',
         type: 'number',
         default: 1,
@@ -396,7 +396,7 @@ export const description: INodeProperties[] = [
         name: 'stream',
         type: 'boolean',
         default: false,
-        description: 'Whether to enable streaming where supported',
+        description: 'Enable streaming where supported',
       },
       {
         displayName: 'Timezone ID',
@@ -406,7 +406,7 @@ export const description: INodeProperties[] = [
         placeholder: 'America/New_York',
       },
       {
-        displayName: 'Wait For (Css: or js:)',
+        displayName: 'Wait For (css: or js:)',
         name: 'waitFor',
         type: 'string',
         default: '',
