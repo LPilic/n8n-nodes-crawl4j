@@ -247,7 +247,15 @@ export class Crawl4aiClient {
     if ((config as any).headers) params.headers = { type: 'dict', value: (config as any).headers };
     if ((config as any).cookies) params.cookies = { type: 'list', value: (config as any).cookies };
     if ((config as any).userAgentMode) params.user_agent_mode = (config as any).userAgentMode;
-    if ((config as any).verbose !== undefined) params.verbose = Boolean((config as any).verbose);
+    if ((config as any).verbose !== undefined) {
+      params.verbose = Boolean((config as any).verbose);
+      console.log('Verbose logging enabled:', params.verbose);
+      // Also try alternative parameter names that might work
+      if (Boolean((config as any).verbose)) {
+        params.enable_logging = true;
+        params.log_level = 'debug';
+      }
+    }
     if ((config as any).usePersistentContext) params.use_persistent_context = true;
     if ((config as any).userDataDir) params.user_data_dir = (config as any).userDataDir;
     if ((config as any).textMode) params.text_mode = true;

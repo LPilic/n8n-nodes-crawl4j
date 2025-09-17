@@ -25,6 +25,7 @@ export async function getCrawl4aiClient(
  * @returns Browser configuration for Crawl4AI
  */
 export function createBrowserConfig(options: IDataObject): BrowserConfig {
+  console.log('Creating browser config with verbose option:', options.verbose);
   return {
     browserType: options.browserType as any,
     headless: options.headless !== false,
@@ -58,10 +59,24 @@ export function createBrowserConfig(options: IDataObject): BrowserConfig {
     textMode: options.textMode === true,
     lightMode: options.lightMode === true,
     extraArgs: (() => {
-      if (!options.extraArgs) return undefined;
-      if (Array.isArray(options.extraArgs)) return (options.extraArgs as any[]).map(String);
-      if (typeof options.extraArgs === 'string') return String(options.extraArgs).split(',').map(s => s.trim()).filter(Boolean);
-      return undefined;
+      const args: string[] = [];
+      
+      // Add existing extra args
+      if (options.extraArgs) {
+        if (Array.isArray(options.extraArgs)) {
+          args.push(...(options.extraArgs as any[]).map(String));
+        } else if (typeof options.extraArgs === 'string') {
+          args.push(...String(options.extraArgs).split(',').map(s => s.trim()).filter(Boolean));
+        }
+      }
+      
+      // Add verbose logging args if enabled
+      if (options.verbose === true) {
+        args.push('--enable-logging', '--v=1');
+        console.log('Added verbose logging args to extraArgs');
+      }
+      
+      return args.length > 0 ? args : undefined;
     })(),
     enableStealth: options.enableStealth === true,
   };
